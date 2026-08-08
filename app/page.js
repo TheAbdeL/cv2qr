@@ -100,7 +100,7 @@ export default function Home() {
 
       <div className="card">
         {mode === "link" ? (
-          <form onSubmit={handleLink}>
+          <form key="link-form" onSubmit={handleLink}>
             <label htmlFor="link">Paste a link</label>
             <input
               id="link"
@@ -114,7 +114,7 @@ export default function Home() {
             </button>
           </form>
         ) : (
-          <form onSubmit={handlePdf}>
+          <form key="pdf-form" onSubmit={handlePdf}>
             <label htmlFor="file">Upload a PDF (CV)</label>
             <input
               id="file"
