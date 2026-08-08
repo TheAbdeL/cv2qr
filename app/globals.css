@@ -180,3 +180,73 @@ button.primary:disabled {
   color: var(--muted);
   line-height: 1.5;
 }
+
+.stats-hint {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.stats-hint a {
+  color: var(--accent);
+  word-break: break-all;
+}
+
+code {
+  background: #0f131b;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.9em;
+}
+
+.stat-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.scan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.scan-table th,
+.scan-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.scan-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+}

@@ -1,9 +1,11 @@
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+import { shortId } from "@/lib/ids";
 
 // Max upload size (5 MB) — keeps stray huge files out.
 const MAX_BYTES = 5 * 1024 * 1024;
+// Storage bucket name — create a PUBLIC bucket with this name in Supabase.
+const BUCKET = "cvs";
 
 export async function POST(request) {
   const formData = await request.formData();
@@ -25,15 +27,36 @@ export async function POST(request) {
     );
   }
 
+  const db = supabaseAdmin();
+
+  // Upload the PDF to Supabase Storage.
+  const objectName = `${shortId()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
   const buffer = Buffer.from(await file.arrayBuffer());
+  const { error: upErr } = await db.storage
+    .from(BUCKET)
+    .upload(objectName, buffer, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+  if (upErr) {
+    return NextResponse.json({ error: upErr.message }, { status: 500 });
+  }
 
-  const uploadsDir = join(process.cwd(), "public", "uploads");
-  await mkdir(uploadsDir, { recursive: true });
+  // Public URL the QR will ultimately point a visitor to.
+  const { data: pub } = db.storage.from(BUCKET).getPublicUrl(objectName);
 
-  // Prefix with a timestamp and sanitise the name to avoid collisions/path tricks.
-  const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-  await writeFile(join(uploadsDir, safeName), buffer);
+  const id = shortId();
+  const adminToken = shortId(24);
+  const { error: dbErr } = await db.from("codes").insert({
+    id,
+    type: "pdf",
+    destination: pub.publicUrl,
+    label: file.name,
+    admin_token: adminToken,
+  });
+  if (dbErr) {
+    return NextResponse.json({ error: dbErr.message }, { status: 500 });
+  }
 
-  // This path is served statically by Next from /public.
-  return NextResponse.json({ url: `/uploads/${safeName}` });
+  return NextResponse.json({ id, adminToken });
 }

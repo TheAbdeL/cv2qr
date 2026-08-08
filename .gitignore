@@ -5,11 +5,7 @@
 /.next
 /out
 
-# uploaded files (keep the folder, ignore its contents)
-/public/uploads/*
-!/public/uploads/.gitkeep
-
-# env
+# env (secrets) — the .env.local.example file is committed, real values are not
 .env
 .env*.local
 

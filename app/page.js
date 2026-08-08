@@ -8,7 +8,8 @@ export default function Home() {
   const [link, setLink] = useState("");
   const [file, setFile] = useState(null);
   const [qr, setQr] = useState(null); // data URL of the generated QR image
-  const [targetUrl, setTargetUrl] = useState(""); // what the QR encodes
+  const [shortUrl, setShortUrl] = useState(""); // the tracked URL the QR encodes
+  const [statsUrl, setStatsUrl] = useState(""); // private dashboard URL
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -23,29 +24,43 @@ export default function Home() {
 
   function reset() {
     setQr(null);
-    setTargetUrl("");
+    setShortUrl("");
+    setStatsUrl("");
     setError("");
   }
 
-  // Phase 1: a link becomes a QR directly, no server needed.
+  // Turn a freshly-created code into a QR pointing at our tracking URL.
+  async function finish(id, adminToken) {
+    const origin = window.location.origin;
+    const tracked = `${origin}/s/${id}`;
+    setShortUrl(tracked);
+    setStatsUrl(`${origin}/dashboard/${adminToken}`);
+    setQr(await makeQr(tracked));
+  }
+
+  // A link becomes a tracked code, then a QR.
   async function handleLink(e) {
     e.preventDefault();
     reset();
     if (!link.trim()) return;
     setLoading(true);
     try {
-      const dataUrl = await makeQr(link.trim());
-      setTargetUrl(link.trim());
-      setQr(dataUrl);
+      const res = await fetch("/api/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination: link.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not create the link.");
+      await finish(data.id, data.adminToken);
     } catch (err) {
-      setError("Could not generate the QR code.");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
-  // Phase 2: a PDF is uploaded, stored on the server, and the
-  // returned URL becomes the QR.
+  // A PDF is uploaded to cloud storage, wrapped in a tracked code, then a QR.
   async function handlePdf(e) {
     e.preventDefault();
     reset();
@@ -56,15 +71,10 @@ export default function Home() {
       form.append("file", file);
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
-
-      // Turn the returned path into an absolute URL so a phone can open it.
-      const absolute = `${window.location.origin}${data.url}`;
-      const dataUrl = await makeQr(absolute);
-      setTargetUrl(absolute);
-      setQr(dataUrl);
+      if (!res.ok) throw new Error(data.error || "Upload failed.");
+      await finish(data.id, data.adminToken);
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -74,7 +84,8 @@ export default function Home() {
     <main className="wrap">
       <h1>CV → QR</h1>
       <p className="subtitle">
-        Turn a CV PDF or any link into a scannable QR code.
+        Turn a CV PDF or any link into a scannable QR code — and see who scans
+        it.
       </p>
 
       <div className="tabs">
@@ -126,10 +137,9 @@ export default function Home() {
               {loading ? "Uploading…" : "Upload & Generate QR"}
             </button>
             <p className="hint">
-              The file is stored on this server and the QR points to its
-              download URL. To scan from your phone, both devices must be on the
-              same network (use your computer&apos;s local IP instead of
-              localhost).
+              The PDF is stored in cloud storage and the QR points to a tracked
+              link that redirects to it — scannable from any phone once
+              deployed.
             </p>
           </form>
         )}
@@ -140,9 +150,9 @@ export default function Home() {
           <div className="result">
             <img src={qr} alt="Generated QR code" />
             <p className="link">
-              Points to:{" "}
-              <a href={targetUrl} target="_blank" rel="noreferrer">
-                {targetUrl}
+              Public link (in the QR):{" "}
+              <a href={shortUrl} target="_blank" rel="noreferrer">
+                {shortUrl}
               </a>
             </p>
             <div className="downloads">
@@ -150,6 +160,13 @@ export default function Home() {
                 ⬇ Download QR (PNG)
               </a>
             </div>
+            <p className="hint stats-hint">
+              🔒 Your private stats page — keep this to yourself:
+              <br />
+              <a href={statsUrl} target="_blank" rel="noreferrer">
+                {statsUrl}
+              </a>
+            </p>
           </div>
         )}
       </div>
