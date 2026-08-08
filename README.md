@@ -1,78 +1,113 @@
 # CV → QR
 
-Turn a **CV (PDF)** or **any link** into a scannable **QR code**. Scan it with a
-phone and the link opens — or the PDF downloads.
+Turn a **CV (PDF)** or **any link** into a scannable **QR code** — hosted for
+free, and with **scan analytics** so you can see who scans it.
 
 ## The core idea
 
-A QR code stores **text**, not files. It can hold a URL of a few hundred
-characters, but it can **never** contain a whole PDF. So the two inputs work
-differently:
+A QR code stores **text**, not files. So the two inputs work differently:
 
-- **Link** → the URL goes straight into the QR. No server needed.
-- **PDF** → the file is **uploaded and hosted first** to get a URL, and _that_
-  URL goes into the QR.
+- **Link** → we store it and hand back a short tracked URL.
+- **PDF** → the file is uploaded to **cloud storage** first to get a public URL.
+
+Either way, the QR encodes a tracked link on **your** app, not the raw
+destination. That's what makes analytics possible:
 
 ```
-INPUT ──► STORE (PDF only) ──► GENERATE QR ──► SCAN ──► OPEN / DOWNLOAD
-link/pdf   file → URL           URL → image     phone     link or file
+QR ──► https://yourapp.com/s/AB12        (your app)
+                 │  1. log the scan: time, approx country/city, device
+                 ▼
+          302 redirect ──► the real link or the PDF   (open / download)
 ```
 
-## Tech stack
+A private stats page at `/dashboard/<secret-token>` then shows every scan.
 
-- **Next.js (App Router)** — UI, upload API, and static file hosting in one app.
+## Tech stack (all free tiers)
+
+- **Next.js (App Router)** — UI, upload API, redirect + logging.
+- **Supabase** — Storage (the PDFs) + Postgres (codes & scan events).
+- **Vercel** — hosting, auto-deploys from GitHub.
 - **qrcode** — generates the QR image in the browser.
-- **Local disk storage** — uploaded PDFs are saved to `public/uploads/` and
-  served as static files. (Swappable for Supabase / S3 later.)
 
 ## Project structure
 
 ```
 cv-to-qr/
 ├─ app/
-│  ├─ page.js              # UI: Link tab + PDF tab, QR display & download
-│  ├─ layout.js            # root layout + metadata
-│  ├─ globals.css          # styling
-│  └─ api/upload/route.js  # receives a PDF, stores it, returns its URL
-├─ public/uploads/         # uploaded PDFs land here (git-ignored)
-└─ next.config.mjs
+│  ├─ page.js                    # UI: Link / PDF tabs, QR + private stats link
+│  ├─ api/create/route.js        # link  → tracked code
+│  ├─ api/upload/route.js        # PDF   → Supabase Storage → tracked code
+│  ├─ s/[id]/route.js            # scan lands here: log, then redirect
+│  └─ dashboard/[token]/page.js  # private scan stats
+├─ lib/                          # supabase client, id + device helpers
+├─ supabase/schema.sql           # database tables — run once in Supabase
+└─ .env.local.example            # which secrets to set
 ```
 
-## Getting started
+## Setup
+
+### 1. Create a Supabase project
+
+Sign up at [supabase.com](https://supabase.com), create a new project (free).
+
+### 2. Create the database tables
+
+Supabase → **SQL Editor** → New query → paste the contents of
+[`supabase/schema.sql`](supabase/schema.sql) → **Run**.
+
+### 3. Create the storage bucket
+
+Supabase → **Storage** → **New bucket** → name it `cvs` → make it **Public** →
+create.
+
+### 4. Add your keys locally
+
+Copy the example env file and fill it in from Supabase → **Settings → API**:
+
+```bash
+cp .env.local.example .env.local
+```
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+> The service-role key is a **secret**. `.env.local` is git-ignored — never
+> commit it.
+
+### 5. Run it
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:3000, make a QR, scan it, then open your private stats
+link to see the scan appear.
 
-## How it works, step by step
+## Deploy to Vercel (free)
 
-1. **Link tab** — paste a URL, click *Generate QR*. The QR encodes the link
-   directly (`app/page.js` → `handleLink`).
-2. **PDF tab** — choose a PDF, click *Upload & Generate QR*. The file is POSTed
-   to `/api/upload`, saved under `public/uploads/`, and the returned URL is
-   turned into a QR (`app/page.js` → `handlePdf`).
-3. Either way you get a QR image you can **download as PNG**.
+1. Push this repo to GitHub (private is fine).
+2. Go to [vercel.com](https://vercel.com), **Add New → Project**, import the repo.
+3. In the project's **Environment Variables**, add the same two keys from your
+   `.env.local` (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`).
+4. **Deploy.** You get a public `https://<your-app>.vercel.app` URL.
 
-### Scanning from your phone
+Now any QR you generate points at your live app, so anyone can scan it from any
+phone — and every scan shows up on your private stats page.
 
-`localhost` only exists on your computer. To scan an uploaded-PDF QR from a
-phone, run the app so it's reachable on your local network and use your
-computer's LAN IP instead of `localhost`:
+## Privacy
 
-```bash
-npm run dev -- -H 0.0.0.0
-```
-
-Then open `http://<your-computer-ip>:3000` (e.g. `http://192.168.1.20:3000`) so
-the generated URLs point somewhere your phone can reach.
+Scans are logged with a timestamp, approximate location (country/city derived
+from the visitor's IP by Vercel), and a coarse device type. Individual scanners
+**cannot** be identified — this is aggregate analytics, not tracking of people.
 
 ## Roadmap
 
 - [x] **Phase 1** — Link → QR
-- [x] **Phase 2** — PDF → hosted URL → QR (local storage)
-- [ ] **Phase 3** — polish: SVG export, expiry, better mobile UX
-- [ ] **Phase 4** — cloud storage (Supabase/S3), accounts, a dashboard & scan analytics
+- [x] **Phase 2** — PDF → hosted URL → QR
+- [x] **Phase 3** — Cloud storage, tracked links, scan analytics, deployable
+- [ ] **Phase 4** — accounts (so each user sees only their own codes), custom
+      QR styling, CSV export, per-code expiry
 ```
