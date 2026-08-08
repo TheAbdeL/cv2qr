@@ -1,0 +1,19 @@
+# dependencies
+/node_modules
+
+# next.js build output
+/.next
+/out
+
+# uploaded files (keep the folder, ignore its contents)
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# env
+.env
+.env*.local
+
+# misc
+.DS_Store
+npm-debug.log*
+*.pem

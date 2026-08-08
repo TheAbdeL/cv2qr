@@ -1,0 +1,18 @@
+{
+  "name": "cv-to-qr",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn a CV PDF or a link into a scannable QR code.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.1.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
