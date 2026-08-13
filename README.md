@@ -32,7 +32,7 @@ A private stats page at `/dashboard/<secret-token>` then shows every scan.
 ## Project structure
 
 ```
-cv-to-qr/
+cv2qr/
 ├─ app/
 │  ├─ page.js                    # UI: Link / PDF tabs, QR + private stats link
 │  ├─ api/create/route.js        # link  → tracked code
