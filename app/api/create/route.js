@@ -22,15 +22,19 @@ export async function POST(request) {
   const id = shortId();
   const adminToken = shortId(24);
 
-  const db = supabaseAdmin();
-  const { error } = await db.from("codes").insert({
-    id,
-    type: "link",
-    destination,
-    admin_token: adminToken,
-  });
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const db = supabaseAdmin();
+    const { error } = await db.from("codes").insert({
+      id,
+      type: "link",
+      destination,
+      admin_token: adminToken,
+    });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 
   return NextResponse.json({ id, adminToken });

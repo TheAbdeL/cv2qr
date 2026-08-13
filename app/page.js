@@ -13,6 +13,19 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Parse a response safely — a 500 with a non-JSON body should still
+  // surface a readable message instead of a JSON parse error.
+  async function readJson(res) {
+    const text = await res.text();
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      return {
+        error: `Server error (${res.status}). Is Supabase configured? See .env.local.`,
+      };
+    }
+  }
+
   // Build a QR PNG (data URL) from any text/URL.
   async function makeQr(text) {
     return QRCode.toDataURL(text, {
@@ -50,7 +63,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ destination: link.trim() }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || "Could not create the link.");
       await finish(data.id, data.adminToken);
     } catch (err) {
@@ -70,7 +83,7 @@ export default function Home() {
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || "Upload failed.");
       await finish(data.id, data.adminToken);
     } catch (err) {

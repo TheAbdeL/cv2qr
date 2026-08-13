@@ -27,35 +27,40 @@ export async function POST(request) {
     );
   }
 
-  const db = supabaseAdmin();
-
-  // Upload the PDF to Supabase Storage.
-  const objectName = `${shortId()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error: upErr } = await db.storage
-    .from(BUCKET)
-    .upload(objectName, buffer, {
-      contentType: "application/pdf",
-      upsert: false,
-    });
-  if (upErr) {
-    return NextResponse.json({ error: upErr.message }, { status: 500 });
-  }
-
-  // Public URL the QR will ultimately point a visitor to.
-  const { data: pub } = db.storage.from(BUCKET).getPublicUrl(objectName);
-
   const id = shortId();
   const adminToken = shortId(24);
-  const { error: dbErr } = await db.from("codes").insert({
-    id,
-    type: "pdf",
-    destination: pub.publicUrl,
-    label: file.name,
-    admin_token: adminToken,
-  });
-  if (dbErr) {
-    return NextResponse.json({ error: dbErr.message }, { status: 500 });
+
+  try {
+    const db = supabaseAdmin();
+
+    // Upload the PDF to Supabase Storage.
+    const objectName = `${shortId()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { error: upErr } = await db.storage
+      .from(BUCKET)
+      .upload(objectName, buffer, {
+        contentType: "application/pdf",
+        upsert: false,
+      });
+    if (upErr) {
+      return NextResponse.json({ error: upErr.message }, { status: 500 });
+    }
+
+    // Public URL the QR will ultimately point a visitor to.
+    const { data: pub } = db.storage.from(BUCKET).getPublicUrl(objectName);
+
+    const { error: dbErr } = await db.from("codes").insert({
+      id,
+      type: "pdf",
+      destination: pub.publicUrl,
+      label: file.name,
+      admin_token: adminToken,
+    });
+    if (dbErr) {
+      return NextResponse.json({ error: dbErr.message }, { status: 500 });
+    }
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 
   return NextResponse.json({ id, adminToken });
